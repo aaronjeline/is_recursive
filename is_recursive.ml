@@ -9,6 +9,10 @@ module CG = Graphs.Callgraph
 
 type proof = Direct of tid | Mutual of tid list
 
+let proofeq a b = match (a,b) with
+  | (Direct a, Direct b) -> a = b
+  | _ -> false
+
 (* Break an edge into a tuple containing the label of its src/dst*)
 let breakedge e = (CG.Node.label @@ CG.Edge.src e, CG.Node.label @@ CG.Edge.dst e)
 
@@ -73,13 +77,14 @@ let main proj =
   let prog = Project.program proj in
   let cg = Program.to_graph prog in
   let subs = Seq.map (find_subs prog) Term.tid in
+  let drec = consume (Seq.filter_map subs (prove_direct prog cg)) in
   printf "Directly Recursive Functions:\n";
-  Seq.iter
-    (Seq.filter_map subs (prove_direct prog cg) )
+  List.iter
+    drec
     (print_proof prog);
   printf "Mutually Recursive Functions:\n";
   Seq.iter
-    (Seq.filter_map subs (prove_mutual prog cg))
+    (Seq.filter_map subs (fun tid -> if List.mem drec (Direct tid) proofeq then None else (prove_mutual prog cg tid)))
     (print_proof prog)
 
 
